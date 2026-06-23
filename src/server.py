@@ -4576,7 +4576,7 @@ button:hover{{background:#d4b87a}}
 <button type="submit">授权并连接</button>
 </form>
 {err_html}
-<p class="note">授权后 Claude Code 将可使用 MCP 工具读写记忆。<br>Token 有效期 30 天。</p>
+<p class="note">授权后 Claude Code 将可使用 MCP 工具读写记忆。<br>Token 永久有效，无需重复授权。<br>若工具调用失败，请在客户端断开重连，再重新点击此页授权即可。</p>
 </div></body></html>"""
 
 
