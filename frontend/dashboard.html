@@ -5179,7 +5179,9 @@ document.addEventListener('click', function(e) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ target_backend: targetBackend })
     }).then(function(r) {
-      return r.json().then(function(d) { return { status: r.status, body: d }; });
+      // 经 readJsonSafe 解析：响应体为空 / 网关 502 HTML（隧道重连、Safari）时
+      // 给人话错误，而不是 iOS Safari 那句 "The string did not match the expected pattern."
+      return readJsonSafe(r).then(function(d) { return { status: r.status, body: d }; });
     }).then(function(res) {
       btn.disabled = false;
       btn.textContent = '切换 / 重算所有 embedding…';

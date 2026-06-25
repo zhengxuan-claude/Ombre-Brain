@@ -384,9 +384,15 @@ def extract_wikilinks(text: str) -> list[str]:
 def get_version() -> str:
     """Read project version from `<repo_root>/VERSION`.
 
-    版本号统一来源：根目录 VERSION 文件。每次发版只改这个文件 + git tag。
-    Docker 镜像里 src/ 旁也复制了一份作 fallback（见 Dockerfile）。
+    版本号唯一真源：根目录 VERSION 文件。每次发版只改这个文件 + git tag。
+    src/VERSION 只是 Docker 镜像内的 fallback 副本（见 Dockerfile）。
     任何路径都读不到时返回 "0.0.0+unknown"，方便排查。
+
+    ⚠️ 读取顺序：根目录 VERSION 优先，src/VERSION 兜底。
+    历史坑：原来先读 src/VERSION，于是发版只改根 VERSION、漏改 src/VERSION 时
+    （或热更新只覆盖 src/ 拉到旧 src/VERSION 时）会出现「代码已更新、版本号原地不动」。
+    改为根目录优先后，根 VERSION 成为唯一真源；热更新也会强制把两处刷成一致
+    （见 web/meta.py do-update），双保险。
 
     Python 小知识：
       * `with open(...) as f:` 是「上下文管理器」，离开 with 块自动关文件
@@ -395,11 +401,10 @@ def get_version() -> str:
         比裸 `except:` 安全，比 `except FileNotFoundError` 全面
     """
     candidates = [
-        # Docker 场景：src/ 是 bind mount（/opt/ombre-brain/src），宿主机可直接编辑
-        # 优先读这里，比 image 层烤死的 /app/VERSION 更新
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), "VERSION"),
-        # 本地开发：src/ 同级的项目根目录
+        # 唯一真源：项目根目录 VERSION（Docker 里由 Dockerfile COPY 进 /app/VERSION）
         os.path.join(_project_root(), "VERSION"),
+        # fallback：src/ 旁的副本（旧 Docker bind-mount 布局 / 根 VERSION 缺失时兜底）
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "VERSION"),
     ]
     for path in candidates:
         try:

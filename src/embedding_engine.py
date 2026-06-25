@@ -57,6 +57,16 @@ _GEMINI_DEFAULT_DIM = 768
 _MAX_INPUT_CHARS = 2000
 
 
+def _norm_model(name: str) -> str:
+    """归一化模型名用于「同一性」比较。
+
+    Gemini OpenAI-compat 端点要求 "models/" 前缀，OpenAI 兼容代理（aihubmix /
+    硅基流动等）用裸名——同一模型仅前缀不同。剥掉前缀 + 去空白 + 小写，
+    让 model_name 的对账只看真实身份，不被书写约定误伤（修 OB-W005 假阳性）。
+    """
+    return (name or "").strip().removeprefix("models/").strip().lower()
+
+
 # ============================================================
 # 后端基类 / Backend Abstract Base
 # ============================================================
@@ -419,7 +429,16 @@ class EmbeddingEngine:
             self._write_meta("vector_dim", cur_dim)
             return
 
-        if old_name != cur_name or old_dim != cur_dim:
+        # 归一化模型名再比较：Gemini 的 OpenAI-compat 端点要求 "models/" 前缀，
+        # 而 aihubmix / 硅基流动等 OpenAI 兼容代理用裸名，同一个模型会因前缀差异
+        # （models/gemini-embedding-001 vs gemini-embedding-001）被误判为 mismatch，
+        # 触发假 OB-W005。前缀只是端点书写约定，不代表模型身份不同，比较前一律剥掉。
+        if _norm_model(old_name) == _norm_model(cur_name) and old_name != cur_name:
+            # 实质相同、只差前缀：顺手把 meta 升级成当前写法，避免每次启动重复对账
+            self._write_meta("model_name", cur_name)
+            old_name = cur_name
+
+        if _norm_model(old_name) != _norm_model(cur_name) or old_dim != cur_dim:
             try:
                 from errors import record_error  # type: ignore
             except ImportError:

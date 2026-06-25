@@ -164,6 +164,24 @@ def register(mcp) -> None:
                     if skipped:
                         yield f"data: 已跳过 {skipped} 个路径异常的条目（安全防护）…\n\n"
 
+                    # --- 同步 VERSION：根目录 VERSION 为唯一真源，写到所有 get_version()
+                    #     会读的位置（<root>/VERSION 与 <root>/src/VERSION）。---
+                    # 历史坑：热更新只覆盖 src/ 和 frontend/，根目录 VERSION 不在其中；
+                    # 而 get_version() 还会读 src/VERSION。两个 VERSION 文件靠人手动同步，
+                    # 发版漏改一个就会出现「更新了一堆文件、版本号却原地不动」。这里在解压后
+                    # 显式把 zip 里的根 VERSION 强制写到两处，保证更新后版本号一定刷新、不再漂移。
+                    try:
+                        ver_bytes = zf.read("Ombre-Brain-main/VERSION")
+                        for _vpath in (
+                            _os.path.join(_repo_root, "VERSION"),
+                            _os.path.join(src_root, "VERSION"),
+                        ):
+                            with open(_vpath, "wb") as _vf:
+                                _vf.write(ver_bytes)
+                        yield f"data: 版本号已同步为 v{ver_bytes.decode('utf-8', 'ignore').strip()}…\n\n"
+                    except KeyError:
+                        pass  # zip 里没有 VERSION（极少数情况）：跳过，不阻断更新
+
                 yield f"data: 已更新 {updated} 个文件，即将重启服务…\n\n"
                 await _asyncio.sleep(0.5)
                 yield "data: RESTART\n\n"

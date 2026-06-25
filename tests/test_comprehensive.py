@@ -1081,3 +1081,22 @@ class TestBucketManagerArchive:
     async def test_archive_nonexistent_returns_false(self, bucket_mgr):
         result = await bucket_mgr.archive("no_such_bucket_xyz")
         assert result is False
+
+
+# ===========================================================
+# 10. EmbeddingEngine — model-name 归一化（OB-W005 假阳性）
+# ===========================================================
+
+class TestEmbeddingModelNorm:
+    def test_prefix_equivalent_to_bare(self):
+        from embedding_engine import _norm_model
+        # Gemini 端点的 models/ 前缀 vs OpenAI 兼容代理的裸名 → 同一模型
+        assert _norm_model("models/gemini-embedding-001") == _norm_model("gemini-embedding-001")
+
+    def test_case_and_whitespace_insensitive(self):
+        from embedding_engine import _norm_model
+        assert _norm_model("  models/Gemini-Embedding-001 ") == _norm_model("gemini-embedding-001")
+
+    def test_different_models_stay_distinct(self):
+        from embedding_engine import _norm_model
+        assert _norm_model("bge-m3") != _norm_model("gemini-embedding-001")
