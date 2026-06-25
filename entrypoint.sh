@@ -47,13 +47,17 @@ fi
 
 # --- 5. 最终校验：必须是普通文件，否则别启动去无限崩溃刷屏 ---
 if [ ! -f "$CONFIG" ]; then
-    echo "[entrypoint] FATAL: '$CONFIG' is still not a regular file (an active bind mount we cannot replace)."
-    echo "[entrypoint] Your compose single-file-mounts a missing config, e.g."
-    echo "[entrypoint]     volumes:  - ./config.yaml:/app/config.yaml"
-    echo "[entrypoint] Fix: remove that line and let config live in the data volume instead:"
+    echo "[entrypoint] FATAL: could not prepare a usable config file at '$CONFIG'."
+    echo "[entrypoint] Two known causes:"
+    echo "[entrypoint]   (a) compose single-file-mounts a missing config (Docker makes it a directory):"
+    echo "[entrypoint]         volumes:  - ./config.yaml:/app/config.yaml   <-- remove this line"
+    echo "[entrypoint]   (b) the path sits on a read-only / non-writable filesystem (many PaaS, e.g."
+    echo "[entrypoint]         Zeabur, use a read-only rootfs — only the mounted volume is writable)."
+    echo "[entrypoint] Fix: point config at the writable data volume:"
     echo "[entrypoint]     environment:  - OMBRE_CONFIG_PATH=/app/buckets/config.yaml"
-    echo "[entrypoint]     volumes:      - ./buckets:/app/buckets"
-    echo "[entrypoint] See deploy/docker-compose.user.yml for the corrected layout."
+    echo "[entrypoint]     volumes:      - ./buckets:/app/buckets   (PaaS: mount the volume at /app/buckets)"
+    echo "[entrypoint] The image already defaults OMBRE_CONFIG_PATH to /app/buckets/config.yaml;"
+    echo "[entrypoint] this FATAL means it was overridden to an unwritable location."
     exit 1
 fi
 
